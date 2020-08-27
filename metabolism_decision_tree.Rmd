@@ -1,0 +1,413 @@
+---
+title: "Metabolism Decision Tree"
+author: "Alice Carter"
+date: "8/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, include=F)
+```
+## Modeling Metabolism in New Hope Creek
+
+#### What decisions do we make when modeling metabolism?
+#### How do these influence our results? 
+
+To explore this, we will use example data from New Hope Creek, NC 
+
+  
+
+```{r}
+library(tidyverse)
+library(dygraphs)
+library(xts)
+library(lubridate)
+
+
+
+setwd(metab_projdir)
+dat<- readRDS("data/metabolism/condensed/condensed_NHC.rds")
+nreg <- read_csv("data/siteData/nightreg_NHC.csv")
+dat<- dat$data
+DO <- select(dat, solar.time, DO.obs, DO.sat, discharge)
+DO$logQ <- log(DO$discharge)
+DO$DO_pctsat <- DO$DO.obs/DO$DO.sat
+
+DO_xts <- xts(DO[,5:6], order.by = DO$solar.time)
+```
+
+```{r DO_xts, include=T}
+dygraph(DO_xts, main = "New Hope Creek")%>%
+  dyRangeSelector()
+
+```
+
+
+
+
+
+I visually selected three days of data that capture the range of dynamics observed in NHC, including:
+
+  1. DO swings high, near saturation: 2020 Mar 7-9
+
+  2. DO swings low, near saturation:  2020 Feb 8-10
+
+  3. DO swings high, undersaturated;  2019 Sept 21-23
+
+  4. DO swings low, undersaturated:   2019 Sept 28-30
+
+
+```{r dat, include=T}
+start_date <- c("2020-03-07", "2020-02-08", "2019-09-21", "2019-09-28")
+start_datetime <- ymd_hms(paste(start_date, "04:00:00"))
+end_datetime <- start_datetime+3*24*60*60
+dat <- select(dat, -DO.mod)
+dat <- left_join(dat, nreg[,1:2])
+
+dat_1 <- dplyr::filter(dat, solar.time>=start_datetime[1] & solar.time <= end_datetime[1])
+dat_2 <- dplyr::filter(dat, solar.time>=start_datetime[2] & solar.time <= end_datetime[2])
+dat_3 <- dplyr::filter(dat, solar.time>=start_datetime[3] & solar.time <= end_datetime[3])
+dat_4 <- dplyr::filter(dat, solar.time>=start_datetime[4] & solar.time <= end_datetime[4])
+
+par(mfrow = c(7,2), mar=c(0,4,0,4), oma = c(4,4,4,4))
+plot(dat_1$solar.time, dat_1$temp.water, type="l", ylim = c(5,25), lwd=2, ylab = "temp", xaxt='n')
+par(new=T)
+plot(dat_1$solar.time, dat_1$light, type="l", ylim = c(0,1800), col = "orange", lwd=2, axes=F, ylab="", xlab="")
+axis(4)
+mtext("light", 4, 2.2, cex=.7)
+mtext("1: High DO swings, near saturation", 3, line=1.5, cex=.9)
+
+plot(dat_2$solar.time, dat_2$temp.water, type="l", ylim = c(5,25), lwd=2, ylab = "temp", xaxt='n')
+par(new=T)
+plot(dat_2$solar.time, dat_2$light, type="l", ylim = c(0,1800), col = "orange", lwd=2, axes=F, ylab="", xlab="")
+axis(4)
+mtext("light", 4, 2.2, cex=.7)
+mtext("2: Low DO swings, near saturation", 3, line=1.5, cex=.9)
+
+plot(dat_1$solar.time, dat_1$DO.obs/dat_1$DO.sat, type="l", col="darkblue", lwd=2, ylab="DO %sat", ylim = c(.9,1.2), xaxt="n")
+
+plot(dat_2$solar.time, dat_2$DO.obs/dat_2$DO.sat, type="l", col="darkblue", lwd=2, ylab="DO %sat", ylim = c(.9,1.2), xaxt="n")
+
+par(mar = c(2,4,0,4))
+plot(dat_1$solar.time, dat_1$discharge, type="l", log="y", lwd=2,col="darkgrey", ylab="Q", ylim = c(0.001, 500))
+
+plot(dat_2$solar.time, dat_2$discharge, type="l", log="y", lwd=2,col="darkgrey", ylab="Q", ylim = c(0.001, 500))
+
+plot(1,1, type="n", axes=F, xaxt='n', yaxt='n', xlab="", ylab="")
+plot(1,1, type="n", axes=F, xaxt='n', yaxt='n', xlab="", ylab="")
+
+par(mar = c(0,4,0,4))
+plot(dat_3$solar.time, dat_3$temp.water, type="l", ylim = c(5,25), lwd=2, ylab = "temp", xaxt='n')
+par(new=T)
+plot(dat_3$solar.time, dat_3$light, type="l", ylim = c(0,1800), col = "orange", lwd=2, axes=F, ylab="", xlab="")
+axis(4)
+mtext("light", 4, 2.2, cex=.7)
+mtext("3: High DO swings, undersaturated", 3, line=1.5, cex=.9)
+
+plot(dat_4$solar.time, dat_4$temp.water, type="l", ylim = c(5,25), lwd=2, ylab = "temp", xaxt='n')
+par(new=T)
+plot(dat_4$solar.time, dat_4$light, type="l", ylim = c(0,1800), col = "orange", lwd=2, axes=F, ylab="", xlab="")
+axis(4)
+mtext("light", 4, 2.2, cex=.7)
+mtext("4: Low DO swings, undersaturated", 3, line=1.5, cex=.9)
+
+plot(dat_3$solar.time, dat_3$DO.obs/dat_3$DO.sat, type="l", col="darkblue", lwd=2, ylab="DO %sat", ylim = c(0.08,0.38), xaxt="n")
+
+plot(dat_4$solar.time, dat_4$DO.obs/dat_4$DO.sat, type="l", col="darkblue", lwd=2, ylab="DO %sat", ylim = c(0,0.3), xaxt="n")
+
+par(mar = c(2,4,0,4))
+plot(dat_3$solar.time, dat_3$discharge, type="l", log="y", lwd=2,col="darkgrey", ylab="Q", ylim = c(0.001, 500))
+
+plot(dat_4$solar.time, dat_4$discharge, type="l", log="y", lwd=2,col="darkgrey", ylab="Q", ylim = c(0.001, 500))
+
+```
+
+
+
+
+### Running Stream Metabolizer
+
+Decision 1: Bayesian model vs Maximum Likelihood
+
+Decision 2: 
+
+  a) pooled K based on Q
+
+  b) fixed K based on night regression
+
+
+
+Running a basic MLE or Bayes model does not require discharge, only depth*
+
+  * this is actually a decision I bypassed. How do we calculate depth in streams? I am currently using an empirical equation built into stream metabolizer
+
+```{r}
+library(streamMetabolizer)
+
+dates <- unique(dat_1$date)
+mle_name <- mm_name(type="mle")
+mle_specs <- specs(mle_name)
+tmp <- select(dat_1, -discharge, -date, -K600)
+mle_mm<- metab(mle_specs, tmp)
+mle_preds <- mle_mm@fit
+
+
+bayes_np_name <- mm_name(type="bayes", pool_K600="none")
+bayes_np_specs <- specs(bayes_np_name)
+bayes_np_mm<- metab(bayes_np_specs, tmp)
+bnp_preds <- bayes_np_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+colnames(bnp_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+bayes_name <- mm_name(type="bayes", pool_K600="binned", err_obs_iid = TRUE,
+                      err_proc_iid = TRUE, err_proc_acor = FALSE)
+bayes_specs <- specs(bayes_name)
+tmp <- tibble(select(dat_1, -date, -K600))
+bayes_mm <- metab(bayes_specs, tmp)
+bp_preds <- bayes_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+colnames(bp_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+ 
+KQ <- filter(nreg, date %in% dates)
+# bayes_name<- mm_name(type="bayes", pool_K600="binned_sdzero", err_obs_iid = TRUE,
+#                       err_proc_iid = TRUE, err_proc_acor = FALSE)
+# bayes_specs <- specs(bayes_name)
+# bayes_specs$K600_lnQ_nodes_centers <- log(KQ$discharge_m3s)
+# bayes_specs$K600_lnQ_nodes_meanlog <- log(KQ$K600)
+# bayes_specs$K600_lnQ_nodes_sdlog <- rep(.1,3)
+# bayes_K_prior_mm <- metab(bayes_specs, tmp)
+# bkpr_preds <- bayes_K_prior_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+# colnames(bkpr_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+
+```
+
+
+```{r, include=T}
+par(mfrow=c(3, 1), mar = c(0,4,0,2), oma = c(5,1,3,1))
+plot(mle_preds$date, mle_preds$GPP.daily, type="l", lwd=2, ylab="GPP", xaxt="n", ylim = c(1.06,1.29))
+mtext("Scenario 1: High DO swings, near saturation", 3,1.5)
+lines(bnp_preds$date, bnp_preds$GPP,  lwd=2, col="forestgreen")
+lines(bp_preds$date, bp_preds$GPP, lwd=2, lty=2,col="forestgreen")
+#lines(bkpr_preds$date, bkpr_preds$GPP, lwd=2, lty=3,col="forestgreen",)
+legend("topright", c("mle","bayes","bayes K pooled","night reg K" ), col=c("black","grey","grey","black"),
+       lty=c(1,1,2,NA), lwd=2, pch=c(NA,NA,NA,1), bty="n",ncol=2)
+
+plot(mle_preds$date, mle_preds$ER.daily, type="l", lwd=2, ylab="ER", xaxt="n", ylim = c(-0.35,-.1))
+lines(bnp_preds$date, bnp_preds$ER, lwd=2, col="sienna")
+lines(bp_preds$date, bp_preds$ER,  lwd=2, lty=2,col="sienna")
+#lines(bkpr_preds$date, bkpr_preds$ER, lwd=2, lty=3,col="sienna")
+
+plot(mle_preds$date, mle_preds$K600.daily, type="l", lwd=2, ylab="K600", ylim = c(7.2,9.4))
+lines(bnp_preds$date, bnp_preds$K600, lwd=2, col="steelblue")
+lines(bp_preds$date, bp_preds$K600, lwd=2, lty=2,col="steelblue")
+#lines(bkpr_preds$date, bkpr_preds$K600, lwd=2, lty=3,col="steelblue")
+points(KQ$date, KQ$K600, pch=1)
+
+
+
+
+```
+
+
+
+```{r}
+dates <- unique(dat_2$date)
+mle_name <- mm_name(type="mle")
+mle_specs <- specs(mle_name)
+tmp <- select(dat_2, -discharge, -date, -K600)
+mle_mm<- metab(mle_specs, tmp)
+mle_preds <- mle_mm@fit
+
+
+bayes_np_name <- mm_name(type="bayes", pool_K600="none")
+bayes_np_specs <- specs(bayes_np_name)
+bayes_np_mm<- metab(bayes_np_specs, tmp)
+bnp_preds <- bayes_np_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+colnames(bnp_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+bayes_name <- mm_name(type="bayes", pool_K600="binned", err_obs_iid = TRUE,
+                      err_proc_iid = TRUE, err_proc_acor = FALSE)
+bayes_specs <- specs(bayes_name)
+tmp <- tibble(select(dat_2, -date, -K600))
+bayes_mm <- metab(bayes_specs, tmp)
+bp_preds <- bayes_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+colnames(bp_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+ 
+KQ <- filter(nreg, date %in% dates)
+bayes_name<- mm_name(type="bayes", pool_K600="binned_sdzero", err_obs_iid = TRUE,
+                      err_proc_iid = TRUE, err_proc_acor = FALSE)
+bayes_specs <- specs(bayes_name)
+bayes_specs$K600_lnQ_nodes_centers <- log(KQ$discharge_m3s)
+bayes_specs$K600_lnQ_nodes_meanlog <- log(KQ$K600)
+bayes_specs$K600_lnQ_nodes_sdlog <- rep(.1,3)
+bayes_K_prior_mm <- metab(bayes_specs, tmp)
+bkpr_preds <- bayes_K_prior_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+colnames(bkpr_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+
+```
+
+
+```{r, include=T}
+par(mfrow=c(3, 1), mar = c(0,4,0,2), oma = c(5,1,3,1))
+plot(mle_preds$date, mle_preds$GPP.daily, type="l", lwd=2, ylab="GPP", xaxt="n")
+mtext("Scenario 2: Low DO swings, near saturation", 3,1.5)
+lines(bnp_preds$date, bnp_preds$GPP,  lwd=2, col="forestgreen")
+lines(bp_preds$date, bp_preds$GPP, lwd=2, lty=2,col="forestgreen")
+lines(bkpr_preds$date, bkpr_preds$GPP, lwd=2, lty=3,col="forestgreen",)
+
+legend("topright", c("mle","bayes","bayes K pooled","bayes k fixed","night reg K"  ), col=c("black","grey","grey","grey","black"),
+       lty=c(1,1,2,3,NA), lwd=2, pch=c(NA,NA,NA,NA,1), bty="n",ncol=2)
+
+plot(mle_preds$date, mle_preds$ER.daily, type="l", lwd=2, ylab="ER", xaxt="n")
+lines(bnp_preds$date, bnp_preds$ER, lwd=2, col="sienna")
+lines(bp_preds$date, bp_preds$ER,  lwd=2, lty=2,col="sienna")
+lines(bkpr_preds$date, bkpr_preds$ER, lwd=2, lty=3,col="sienna")
+
+plot(mle_preds$date, mle_preds$K600.daily, type="l", lwd=2, ylab="K600", ylim = c(8,50))
+lines(bnp_preds$date, bnp_preds$K600, lwd=2, col="steelblue")
+lines(bp_preds$date, bp_preds$K600, lwd=2, lty=2,col="steelblue")
+lines(bkpr_preds$date, bkpr_preds$K600, lwd=2, lty=3,col="steelblue")
+points(KQ$date, KQ$K600, pch=1)
+
+
+```
+
+
+
+
+```{r}
+dates <- unique(dat_3$date)
+mle_name <- mm_name(type="mle")
+mle_specs <- specs(mle_name)
+tmp <- select(dat_3, -discharge, -date, -K600)
+mle_mm<- metab(mle_specs, tmp)
+mle_preds <- mle_mm@fit
+
+
+bayes_np_name <- mm_name(type="bayes", pool_K600="none")
+bayes_np_specs <- specs(bayes_np_name)
+bayes_np_mm<- metab(bayes_np_specs, tmp)
+bnp_preds <- bayes_np_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+colnames(bnp_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+bayes_name <- mm_name(type="bayes", pool_K600="binned", err_obs_iid = TRUE,
+                      err_proc_iid = TRUE, err_proc_acor = FALSE)
+bayes_specs <- specs(bayes_name)
+tmp <- tibble(select(dat_3, -date, -K600))
+bayes_mm <- metab(bayes_specs, tmp)
+bp_preds <- bayes_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+colnames(bp_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+ 
+KQ <- filter(nreg, date %in% dates)
+# bayes_name<- mm_name(type="bayes", pool_K600="binned_sdzero", err_obs_iid = TRUE,
+#                       err_proc_iid = TRUE, err_proc_acor = FALSE)
+# bayes_specs <- specs(bayes_name)
+# bayes_specs$K600_lnQ_nodes_centers <- log(KQ$discharge_m3s)
+# bayes_specs$K600_lnQ_nodes_meanlog <- log(KQ$K600)
+# bayes_specs$K600_lnQ_nodes_sdlog <- rep(.1,3)
+# bayes_K_prior_mm <- metab(bayes_specs, tmp)
+# bkpr_preds <- bayes_K_prior_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+# colnames(bkpr_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+
+```
+
+
+```{r, include=T}
+par(mfrow=c(3, 1), mar = c(0,4,0,2), oma = c(5,1,3,1))
+plot(mle_preds$date, mle_preds$GPP.daily, type="l", lwd=2, ylab="GPP", xaxt="n")
+mtext("Scenario 3: High DO swings, undersaturated", 3,1.5)
+lines(bnp_preds$date, bnp_preds$GPP,  lwd=2, col="forestgreen")
+lines(bp_preds$date, bp_preds$GPP, lwd=2, lty=2,col="forestgreen")
+#lines(bkpr_preds$date, bkpr_preds$GPP, lwd=2, lty=3,col="forestgreen",)
+
+legend("topleft", c("mle","bayes","bayes K pooled","night reg K" ), col=c("black","grey","grey","black"),
+       lty=c(1,1,2,NA), lwd=2, pch=c(NA,NA,NA,1), bty="n",ncol=2)
+
+plot(mle_preds$date, mle_preds$ER.daily, type="l", lwd=2, ylab="ER", xaxt="n")
+lines(bnp_preds$date, bnp_preds$ER, lwd=2, col="sienna")
+lines(bp_preds$date, bp_preds$ER,  lwd=2, lty=2,col="sienna")
+#lines(bkpr_preds$date, bkpr_preds$ER, lwd=2, lty=3,col="sienna")
+
+plot(mle_preds$date, mle_preds$K600.daily, type="l", lwd=2, ylab="K600")#, ylim = c(8,50))
+lines(bnp_preds$date, bnp_preds$K600, lwd=2, col="steelblue")
+lines(bp_preds$date, bp_preds$K600, lwd=2, lty=2,col="steelblue")
+#lines(bkpr_preds$date, bkpr_preds$K600, lwd=2, lty=3,col="steelblue")
+points(KQ$date, KQ$K600, pch=1)
+
+
+```
+
+
+
+
+
+
+```{r}
+
+dates <- unique(dat_4$date)
+mle_name <- mm_name(type="mle")
+mle_specs <- specs(mle_name)
+tmp <- select(dat_4, -discharge, -date, -K600)
+mle_mm<- metab(mle_specs, tmp)
+mle_preds <- mle_mm@fit
+
+
+bayes_np_name <- mm_name(type="bayes", pool_K600="none")
+bayes_np_specs <- specs(bayes_np_name)
+bayes_np_mm<- metab(bayes_np_specs, tmp)
+bnp_preds <- bayes_np_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+colnames(bnp_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+bayes_name <- mm_name(type="bayes", pool_K600="binned", err_obs_iid = TRUE,
+                      err_proc_iid = TRUE, err_proc_acor = FALSE)
+bayes_specs <- specs(bayes_name)
+tmp <- tibble(select(dat_4, -date, -K600))
+bayes_mm <- metab(bayes_specs, tmp)
+bp_preds <- bayes_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+colnames(bp_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+ 
+KQ <- filter(nreg, date %in% dates)
+# bayes_name<- mm_name(type="bayes", pool_K600="binned_sdzero", err_obs_iid = TRUE,
+#                       err_proc_iid = TRUE, err_proc_acor = FALSE)
+# bayes_specs <- specs(bayes_name)
+# bayes_specs$K600_lnQ_nodes_centers <- log(KQ$discharge_m3s)
+# bayes_specs$K600_lnQ_nodes_meanlog <- log(KQ$K600)
+# bayes_specs$K600_lnQ_nodes_sdlog <- rep(.1,3)
+# bayes_K_prior_mm <- metab(bayes_specs, tmp)
+# bkpr_preds <- bayes_K_prior_mm@fit$daily[,c(1,7,5,9,17,15,19,57,55,59)]
+# colnames(bkpr_preds) <- c("date", "GPP","GPP.lower","GPP.upper", "ER","ER.lower","ER.upper","K600","K600.lower","K600.upper")
+
+
+```
+
+
+```{r, include=T}
+par(mfrow=c(3, 1), mar = c(0,4,0,2), oma = c(5,1,3,1))
+plot(mle_preds$date, mle_preds$GPP.daily, type="l", lwd=2, ylab="GPP", xaxt="n", ylim = c(-0.02,.04))
+abline(h=0, lwd=.5)
+mtext("Scenario 4: low DO swings, undersaturated", 3,1.5)
+lines(bnp_preds$date, bnp_preds$GPP,  lwd=2, col="forestgreen")
+lines(bp_preds$date, bp_preds$GPP, lwd=2, lty=2,col="forestgreen")
+#lines(bkpr_preds$date, bkpr_preds$GPP, lwd=2, lty=3,col="forestgreen",)
+
+legend("topleft", c("mle","bayes","bayes K pooled","night reg K" ), col=c("black","grey","grey","black"),
+       lty=c(1,1,2,NA), lwd=2, pch=c(NA,NA,NA,1), bty="n",ncol=2)
+
+plot(mle_preds$date, mle_preds$ER.daily, type="l", lwd=2, ylab="ER", xaxt="n")
+lines(bnp_preds$date, bnp_preds$ER, lwd=2, col="sienna")
+lines(bp_preds$date, bp_preds$ER,  lwd=2, lty=2,col="sienna")
+#lines(bkpr_preds$date, bkpr_preds$ER, lwd=2, lty=3,col="sienna")
+
+plot(mle_preds$date, mle_preds$K600.daily, type="l", lwd=2, ylab="K600")#, ylim = c(8,50))
+lines(bnp_preds$date, bnp_preds$K600, lwd=2, col="steelblue")
+lines(bp_preds$date, bp_preds$K600, lwd=2, lty=2,col="steelblue")
+#lines(bkpr_preds$date, bkpr_preds$K600, lwd=2, lty=3,col="steelblue")
+points(KQ$date, KQ$K600, pch=1)
+
+```
+
